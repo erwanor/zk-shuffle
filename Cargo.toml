@@ -11,4 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 safe-shuffle = "0.1.1"
-rand_core = "0.6.3"
+rand_core = { version = "0.6.3", features = [ "getrandom" ] }
+elgamal_ristretto = { git = "https://github.com/erwanor/elgamal.git", branch = "zkp-fork"}
+merlin = "3.0.0"
+curve25519-dalek-ng = "4.1.1"
+sha2 = "0.9"
