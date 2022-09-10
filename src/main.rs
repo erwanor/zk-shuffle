@@ -1,6 +1,7 @@
 use curve25519_dalek_ng::{
     ristretto::{self, RistrettoPoint},
     scalar::Scalar,
+    traits::Identity,
 };
 use elgamal::public::PublicKey;
 use elgamal_ristretto as elgamal;
@@ -24,19 +25,26 @@ fn main() {
         .enumerate()
         .for_each(|(i, v)| println!("{i} -> {v}"));
 
-    let private_keys: Vec<elgamal::private::SecretKey> = (0..100)
-        .map(|_| elgamal_ristretto::private::SecretKey::new(&mut OsRng))
-        .collect();
-
-    let public_keys: Vec<elgamal::public::PublicKey> =
-        private_keys.iter().map(|sk| PublicKey::from(sk)).collect();
-
-    let ciphers: Vec<elgamal::ciphertext::Ciphertext> = public_keys
-        .iter()
-        .zip(messages.iter())
-        .map(|(pk, msg)| pk.encrypt(msg))
-        .collect();
+    let private_key = elgamal_ristretto::private::SecretKey::new(&mut OsRng);
+    let public_key = PublicKey::from(&private_key);
 
     // We sample p_1, ..., p_n randomizers
     let randomizers: Vec<Scalar> = (0..100).map(|_| Scalar::random(&mut OsRng)).collect();
+
+    let ciphers: Vec<elgamal::ciphertext::Ciphertext> = messages
+        .iter()
+        .zip(randomizers.clone().into_iter())
+        .map(|(msg, p)| public_key.encrypt_with_blinding_factor(msg, p))
+        .collect();
+
+    // Shuffle ciphers: C*_i = C_{pi(i)} * Encrypt(1, P_i)
+    let shuffled_ciphers: Vec<elgamal::ciphertext::Ciphertext> = permutation
+        .into_iter()
+        .enumerate()
+        .map(|(i, new_i)| {
+            let p_i = randomizers[i];
+            ciphers[new_i]
+                + public_key.encrypt_with_blinding_factor(&RistrettoPoint::identity(), p_i)
+        })
+        .collect();
 }
